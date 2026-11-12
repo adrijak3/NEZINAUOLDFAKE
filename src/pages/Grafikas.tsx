@@ -581,7 +581,7 @@ export default function Grafikas() {
       >
         <p className="text-xs uppercase tracking-[0.3em] text-gold/70 mb-3">Equus jojimo mokykla</p>
         <h1 className="text-4xl sm:text-6xl font-display text-gradient-gold leading-tight mb-3">
-          Mylintiems žirgus<br className="sm:hidden" /> ir laisvę
+          Grafikas
         </h1>
         <div className="gold-divider max-w-[140px] mx-auto" />
       </motion.header>

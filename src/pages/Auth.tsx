@@ -38,6 +38,10 @@ export default function Auth() {
   const [forgotOpen, setForgotOpen] = useState(false);
   const [fpEmail, setFpEmail] = useState("");
   const [fpBusy, setFpBusy] = useState(false);
+  const [fpSent, setFpSent] = useState(false);
+  const [fpCode, setFpCode] = useState("");
+  const [fpPassword, setFpPassword] = useState("");
+  const [fpRepeatPassword, setFpRepeatPassword] = useState("");
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -113,18 +117,44 @@ export default function Auth() {
   };
 
   const submitForgot = async () => {
-    if (!/^\\S+@\\S+\\.\\S+$/.test(fpEmail.trim())) { toast.error("Įveskite teisingą el. paštą"); return; }
-    if (!captchaToken) { toast.error("Palaukite, kol bus atlikta saugumo patikra"); return; }
+    if (!/^\S+@\S+\.\S+$/.test(fpEmail.trim())) { toast.error("Įveskite teisingą el. paštą"); return; }
     setFpBusy(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(fpEmail.trim(), {
-      redirectTo: `${window.location.origin}/atkurti-slaptazodi`,
-      captchaToken,
+    // Existing Equus mail queue sends a recovery OTP using the configured Gmail sender.
+    // Do not use the separate Supabase Auth email sender here.
+    const { data, error } = await supabase.functions.invoke("request-password-reset-email", {
+      body: { email: fpEmail.trim() },
     });
     setFpBusy(false);
-    refreshCaptcha();
-    if (error) { toast.error("Nepavyko išsiųsti nuorodos. Bandykite vėliau."); return; }
-    toast.success("Jeigu paskyra egzistuoja, išsiųsime slaptažodžio atkūrimo nuorodą.");
-    setForgotOpen(false); setFpEmail("");
+    if (error || (data as { error?: string } | null)?.error) {
+      toast.error("Nepavyko pateikti prašymo. Bandykite vėliau.");
+      return;
+    }
+    setFpSent(true);
+    toast.success("Jeigu paskyra egzistuoja, atkūrimo kodas bus išsiųstas el. paštu.");
+  };
+
+  const confirmForgot = async () => {
+    if (!/^\d{6}$/.test(fpCode)) { toast.error("Įveskite 6 skaitmenų kodą"); return; }
+    if (fpPassword.length < 8) { toast.error("Slaptažodis turi būti bent 8 simbolių"); return; }
+    if (fpPassword !== fpRepeatPassword) { toast.error("Slaptažodžiai nesutampa"); return; }
+    setFpBusy(true);
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email: fpEmail.trim(),
+      token: fpCode,
+      type: "recovery",
+    });
+    if (verifyError) {
+      setFpBusy(false);
+      toast.error("Kodas neteisingas arba nebegalioja. Galite paprašyti naujo.");
+      return;
+    }
+    const { error: updateError } = await supabase.auth.updateUser({ password: fpPassword });
+    setFpBusy(false);
+    if (updateError) { toast.error("Nepavyko pakeisti slaptažodžio: " + updateError.message); return; }
+    toast.success("Slaptažodis pakeistas. Galite prisijungti.");
+    setForgotOpen(false);
+    setFpEmail(""); setFpCode(""); setFpPassword(""); setFpRepeatPassword(""); setFpSent(false);
+    navigate("/");
   };
 
   return (
@@ -204,20 +234,51 @@ export default function Auth() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Įveskite savo el. paštą. Jei paskyra egzistuoja, gausite saugią slaptažodžio atkūrimo nuorodą.
-            </p>
-            <div>
-              <Label htmlFor="fp-email">El. paštas</Label>
-              <Input id="fp-email" type="email" value={fpEmail} onChange={(e) => setFpEmail(e.target.value)} />
-            </div>
-
+            {!fpSent ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Įveskite paskyros el. paštą. Jei paskyra egzistuoja, į jį atsiųsime vienkartinį atkūrimo kodą.
+                </p>
+                <div>
+                  <Label htmlFor="fp-email">El. paštas</Label>
+                  <Input id="fp-email" type="email" value={fpEmail} onChange={(e) => setFpEmail(e.target.value)} />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Laiškus siunčiame per Equus Gmail sistemą; kartais išsiuntimas gali užtrukti kelias minutes.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Jei turite paskyrą, į {fpEmail} gausite 6 skaitmenų kodą. Patikrinkite ir šlamšto aplanką.
+                </p>
+                <div>
+                  <Label htmlFor="fp-code">Atkūrimo kodas</Label>
+                  <Input id="fp-code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} value={fpCode} onChange={(e) => setFpCode(e.target.value.replace(/\D/g, "").slice(0, 6))} />
+                </div>
+                <div>
+                  <Label htmlFor="fp-new-pass">Naujas slaptažodis</Label>
+                  <Input id="fp-new-pass" type="password" autoComplete="new-password" minLength={8} value={fpPassword} onChange={(e) => setFpPassword(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="fp-repeat-pass">Pakartokite naują slaptažodį</Label>
+                  <Input id="fp-repeat-pass" type="password" autoComplete="new-password" minLength={8} value={fpRepeatPassword} onChange={(e) => setFpRepeatPassword(e.target.value)} />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setForgotOpen(false)}>Atšaukti</Button>
-            <Button variant="gold" onClick={submitForgot} disabled={fpBusy}>
-              {fpBusy ? "Siunčiama…" : "Išsiųsti atkūrimo nuorodą"}
-            </Button>
+            <Button variant="ghost" onClick={() => { setForgotOpen(false); setFpSent(false); setFpCode(""); }}>Atšaukti</Button>
+            {fpSent ? (
+              <>
+                <Button variant="outlineGold" onClick={submitForgot} disabled={fpBusy}>Siųsti kodą dar kartą</Button>
+                <Button variant="gold" onClick={confirmForgot} disabled={fpBusy || fpCode.length !== 6}>{fpBusy ? "Tikrinama…" : "Patvirtinti kodą"}</Button>
+              </>
+            ) : (
+              <Button variant="gold" onClick={submitForgot} disabled={fpBusy}>
+                {fpBusy ? "Siunčiama…" : "Siųsti kodą"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

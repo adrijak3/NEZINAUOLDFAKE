@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { KeyRound } from "lucide-react";
+import { TurnstileChallenge } from "@/components/TurnstileChallenge";
 
 const signUpSchema = z.object({
   full_name: z.string().trim().min(2, "Vardas per trumpas").max(80),
@@ -29,6 +30,9 @@ export default function Auth() {
   const [params] = useSearchParams();
   const [tab, setTab] = useState(params.get("tab") === "signup" ? "signup" : "signin");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const refreshCaptcha = () => { setCaptchaToken(null); setCaptchaReset((n) => n + 1); };
 
   // Forgot-password dialog state
   const [forgotOpen, setForgotOpen] = useState(false);
@@ -51,6 +55,7 @@ export default function Auth() {
       toast.error(parsed.error.issues[0].message);
       return;
     }
+    if (!captchaToken) { toast.error("Palaukite, kol bus atlikta saugumo patikra."); return; }
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email: parsed.data.email,
@@ -58,9 +63,11 @@ export default function Auth() {
       options: {
         emailRedirectTo: `${window.location.origin}/`,
         data: { full_name: parsed.data.full_name, phone: parsed.data.phone },
+        captchaToken,
       },
     });
     setLoading(false);
+    refreshCaptcha();
     if (error) {
       toast.error(error.message.includes("already") ? "Toks vartotojas jau egzistuoja" : error.message);
       return;
@@ -77,6 +84,7 @@ export default function Auth() {
       toast.error(parsed.error.issues[0].message);
       return;
     }
+    if (!captchaToken) { toast.error("Palaukite, kol bus atlikta saugumo patikra."); return; }
     setLoading(true);
     let email = parsed.data.identifier;
     if (!isEmail(email)) {
@@ -86,6 +94,7 @@ export default function Auth() {
       });
       if (lookupErr || (data as any)?.error || !(data as any)?.email) {
         setLoading(false);
+        refreshCaptcha();
         toast.error("Neteisingas telefonas arba slaptažodis");
         return;
       }
@@ -94,8 +103,10 @@ export default function Auth() {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password: parsed.data.password,
+      options: { captchaToken },
     });
     setLoading(false);
+    refreshCaptcha();
     if (error) {
       toast.error("Neteisingas el. paštas arba slaptažodis");
       return;
@@ -134,7 +145,7 @@ export default function Auth() {
       </div>
 
       <div className="bg-gradient-card border border-gold/15 rounded-lg p-6 sm:p-8 shadow-elegant animate-fade-up">
-        <Tabs value={tab} onValueChange={setTab}>
+        <Tabs value={tab} onValueChange={(value) => { setTab(value); refreshCaptcha(); }}>
           <TabsList className="grid grid-cols-2 w-full bg-background/50 mb-6">
             <TabsTrigger value="signin">Prisijungti</TabsTrigger>
             <TabsTrigger value="signup">Registruotis</TabsTrigger>
@@ -150,7 +161,8 @@ export default function Auth() {
                 <Label htmlFor="si-pw">Slaptažodis</Label>
                 <Input id="si-pw" name="password" type="password" required autoComplete="current-password" />
               </div>
-              <Button variant="gold" type="submit" className="w-full mt-6" disabled={loading}>
+              <TurnstileChallenge onToken={setCaptchaToken} resetKey={captchaReset} />
+              <Button variant="gold" type="submit" className="w-full mt-6" disabled={loading || !captchaToken}>
                 {loading ? "Jungiamasi…" : "Prisijungti"}
               </Button>
               <button
@@ -181,7 +193,8 @@ export default function Auth() {
                 <Label htmlFor="su-pw">Slaptažodis</Label>
                 <Input id="su-pw" name="password" type="password" required minLength={8} autoComplete="new-password" />
               </div>
-              <Button variant="gold" type="submit" className="w-full mt-6" disabled={loading}>
+              <TurnstileChallenge onToken={setCaptchaToken} resetKey={captchaReset} />
+              <Button variant="gold" type="submit" className="w-full mt-6" disabled={loading || !captchaToken}>
                 {loading ? "Kuriama…" : "Sukurti paskyrą"}
               </Button>
             </form>

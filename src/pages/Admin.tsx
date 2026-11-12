@@ -49,7 +49,7 @@ export default function Admin() {
     <div className="container max-w-6xl py-8 sm:py-14">
       <header className="mb-8 animate-fade-up">
         <p className="text-xs uppercase tracking-[0.25em] text-gold/70 mb-2">Administracija</p>
-        <h1 className="text-4xl sm:text-5xl font-display text-gradient-gold">Valdymas</h1>
+        <h1 className="text-4xl sm:text-5xl font-display text-gradient-gold">Pradžia</h1>
         {totalAlerts > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {alerts.unread > 0 && (

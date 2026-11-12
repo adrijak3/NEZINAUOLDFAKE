@@ -766,53 +766,31 @@ function PermanentSlotsSection({
 }
 
 function PasswordChange() {
-  const { user, profile } = useAuth();
-  const [phone, setPhone] = useState("");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!user?.email) return;
     if (pw.length < 8) { toast.error("Slaptažodis turi būti bent 8 simbolių"); return; }
     if (pw !== pw2) { toast.error("Slaptažodžiai nesutampa"); return; }
-    if (!phone.trim()) { toast.error("Įveskite telefono numerį"); return; }
     setBusy(true);
-    const { data, error } = await supabase.functions.invoke("reset-password-by-phone", {
-      body: { email: user.email, phone: phone.trim(), new_password: pw },
-    });
+    // Only an authenticated user's own password can be changed here.
+    const { error } = await supabase.auth.updateUser({ password: pw });
     setBusy(false);
-    if (error || (data as any)?.error) {
-      toast.error((data as any)?.error || error?.message || "Klaida");
-      return;
-    }
+    if (error) { toast.error(error.message); return; }
     toast.success("Slaptažodis pakeistas");
-    setPhone(""); setPw(""); setPw2("");
+    setPw(""); setPw2("");
   };
 
   return (
     <Section title="Pakeisti slaptažodį" icon={<KeyRound className="w-4 h-4" />}>
       <div className="p-5 space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Įveskite savo telefono numerį (turi sutapti su paskyroje nurodytu — <span className="text-foreground/80">{profile?.phone ?? "nenurodytas"}</span>) ir naują slaptažodį.
-        </p>
-        <div>
-          <Label htmlFor="pc-phone">Telefonas patvirtinimui</Label>
-          <Input id="pc-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        </div>
+        <p className="text-sm text-muted-foreground">Slaptažodį galite keisti tik prisijungę prie savo paskyros. Neprisijungę naudokite el. pašto atkūrimo nuorodą.</p>
         <div className="grid sm:grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="pc-pw">Naujas slaptažodis</Label>
-            <Input id="pc-pw" type="password" value={pw} onChange={(e) => setPw(e.target.value)} minLength={8} />
-          </div>
-          <div>
-            <Label htmlFor="pc-pw2">Pakartokite</Label>
-            <Input id="pc-pw2" type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} minLength={8} />
-          </div>
+          <div><Label htmlFor="pc-pw">Naujas slaptažodis</Label><Input id="pc-pw" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} minLength={8} /></div>
+          <div><Label htmlFor="pc-pw2">Pakartokite</Label><Input id="pc-pw2" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} minLength={8} /></div>
         </div>
-        <div className="flex justify-end pt-1">
-          <Button variant="gold" onClick={submit} disabled={busy}>{busy ? "Keičiama…" : "Pakeisti"}</Button>
-        </div>
+        <div className="flex justify-end pt-1"><Button variant="gold" onClick={submit} disabled={busy}>{busy ? "Keičiama…" : "Pakeisti"}</Button></div>
       </div>
     </Section>
   );

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -550,6 +551,7 @@ export default function Paskyra() {
         <TabsContent value="settings" className="space-y-6">
           <ProfileSettings onSaved={refreshProfile} />
           <PasswordChange />
+          <Link to="/saugumas" className="flex items-center justify-between rounded-lg border border-gold/20 bg-gradient-card p-5 text-gold hover:bg-gold/5"><span>Saugumas · 2FA ir prisijungę įrenginiai</span><span aria-hidden="true">›</span></Link>
         </TabsContent>
       </Tabs>
 

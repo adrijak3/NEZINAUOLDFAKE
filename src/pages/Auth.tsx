@@ -216,7 +216,7 @@ export default function Auth() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setForgotOpen(false)}>Atšaukti</Button>
             <Button variant="gold" onClick={submitForgot} disabled={fpBusy}>
-              {fpBusy ? "Keičiama…" : "Pakeisti slaptažodį"}
+              {fpBusy ? "Siunčiama…" : "Išsiųsti atkūrimo nuorodą"}
             </Button>
           </DialogFooter>
         </DialogContent>

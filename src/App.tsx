@@ -14,6 +14,7 @@ import Admin from "./pages/Admin";
 import Trener from "./pages/Trener";
 import Informacija from "./pages/Informacija";
 import NotFound from "./pages/NotFound";
+import Security, { MfaGate } from "./pages/Security";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <MfaGate>
           <Layout>
             <Routes>
               <Route path="/" element={<Grafikas />} />
@@ -39,11 +41,13 @@ const App = () => (
               <Route path="/informacija" element={<Informacija />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/paskyra" element={<RequireAuth><PaskyraRoute /></RequireAuth>} />
+              <Route path="/saugumas" element={<RequireAuth><Security /></RequireAuth>} />
               <Route path="/admin" element={<RequireAuth adminOnly><Admin /></RequireAuth>} />
               <Route path="/trener" element={<RequireAuth><Trener /></RequireAuth>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
+          </MfaGate>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

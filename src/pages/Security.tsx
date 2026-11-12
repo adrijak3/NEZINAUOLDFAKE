@@ -63,19 +63,35 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
   );
 }
 
+type LoginSession = { session_id: string; created_at: string; last_active_at: string; user_agent: string | null; ip_address: string | null };
+
+function deviceLabel(ua: string | null) {
+  if (!ua) return "Nežinomas įrenginys";
+  const device = /iPhone/i.test(ua) ? "iPhone" : /iPad/i.test(ua) ? "iPad" : /Android/i.test(ua) ? "Android" : /Windows/i.test(ua) ? "Windows" : /Macintosh|Mac OS/i.test(ua) ? "Mac" : /Linux/i.test(ua) ? "Linux" : "Įrenginys";
+  const browser = /Edg\//i.test(ua) ? "Edge" : /OPR\//i.test(ua) ? "Opera" : /Firefox\//i.test(ua) ? "Firefox" : /Chrome\//i.test(ua) ? "Chrome" : /Safari\//i.test(ua) ? "Safari" : "Naršyklė";
+  return `${device} · ${browser}`;
+}
+
 export default function Security() {
   const { user } = useAuth();
   const [factor, setFactor] = useState<Factor | null>(null);
   const [pending, setPending] = useState<{ id: string; qr: string; secret: string } | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sessions, setSessions] = useState<LoginSession[]>([]);
+  const [sessionsError, setSessionsError] = useState(false);
+  const loadSessions = async () => {
+    const { data, error } = await (supabase as any).rpc("list_my_auth_sessions");
+    setSessionsError(Boolean(error));
+    if (!error) setSessions((data ?? []) as LoginSession[]);
+  };
 
   const load = async () => {
     const { data, error } = await supabase.auth.mfa.listFactors();
     if (error) { toast.error(error.message); return; }
     setFactor(data?.totp?.find((f) => f.status === "verified") ?? null);
   };
-  useEffect(() => { if (user) void load(); }, [user?.id]);
+  useEffect(() => { if (user) { void load(); void loadSessions(); } }, [user?.id]);
 
   const enroll = async () => {
     setBusy(true);
@@ -110,7 +126,7 @@ export default function Security() {
     if (!confirm("Atsijungti visuose kituose įrenginiuose?")) return;
     const { error } = await supabase.auth.signOut({ scope: "others" });
     if (error) toast.error(error.message);
-    else toast.success("Kitų įrenginių sesijos atšauktos. Galiojantys prieigos žetonai gali veikti iki jų galiojimo pabaigos.");
+    else { toast.success("Kitų įrenginių sesijos atšauktos. Galiojantys prieigos žetonai gali veikti iki jų galiojimo pabaigos."); void loadSessions(); }
   };
 
   return <div className="container max-w-2xl py-10 space-y-8">
@@ -130,7 +146,9 @@ export default function Security() {
     <section className="rounded-lg bg-gradient-card border border-gold/15 p-5 space-y-4">
       <h2 className="text-xl font-display text-gold">Prisijungimo sesijos</h2>
       <p className="text-sm text-muted-foreground">Dabartinis įrenginys: {navigator.userAgent.includes("Mobile") ? "telefonas" : "kompiuteris / naršyklė"} (ši sesija).</p>
-      <p className="text-sm text-muted-foreground">Kitų įrenginių sąrašo ir jų vietovių kol kas nerodome – be patikimų serverio duomenų jie būtų netikslūs.</p>
+      {sessionsError ? <p className="text-sm text-destructive">Nepavyko gauti prisijungimų sąrašo.</p> : <ul className="divide-y divide-gold/10">{sessions.map((entry) => <li key={entry.session_id} className="py-3 space-y-1"><div className="text-sm font-medium">{deviceLabel(entry.user_agent)}</div><div className="text-xs text-muted-foreground">Paskutinį kartą aktyvus: {new Date(entry.last_active_at).toLocaleString("lt-LT")}</div><div className="text-xs text-muted-foreground">IP: {entry.ip_address ?? "Nenurodytas"} · Prisijungta: {new Date(entry.created_at).toLocaleString("lt-LT")}</div></li>)}</ul>}
+      <p className="text-xs text-muted-foreground">Įrenginio pavadinimas nustatomas pagal naršyklę; IP nėra tiksli geografinė vieta. Istoriškai pasibaigusios sesijos nerodomos.</p>
+      <Button variant="outlineGold" onClick={() => void loadSessions()}>Atnaujinti sąrašą</Button>
       <Button variant="outlineGold" onClick={logoutOthers}>Atsijungti kituose įrenginiuose</Button>
     </section>
     <p className="text-xs text-muted-foreground">Naujo įrenginio patvirtinimas el. paštu bus atskiras funkcionalumas. 2FA nėra tas pats, kas naujo įrenginio aptikimas.</p>

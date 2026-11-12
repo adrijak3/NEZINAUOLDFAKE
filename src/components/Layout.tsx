@@ -10,18 +10,21 @@ const NAV_PUBLIC = [
   { to: "/kainos", label: "Kainos", icon: Tag },
   { to: "/informacija", label: "Informacija", icon: Info },
   { to: "/paskyra", label: "Paskyra", icon: UserIcon },
+  { to: "/saugumas", label: "Saugumas", icon: ShieldCheck },
 ];
 
 const NAV_ADMIN = [
   { to: "/", label: "Grafikas", icon: Calendar },
   { to: "/kainos", label: "Kainos", icon: Tag },
   { to: "/informacija", label: "Informacija", icon: Info },
+  { to: "/saugumas", label: "Saugumas", icon: ShieldCheck },
 ];
 
 const NAV_TRAINER = [
   { to: "/", label: "Grafikas", icon: Calendar },
   { to: "/kainos", label: "Kainos", icon: Tag },
   { to: "/informacija", label: "Informacija", icon: Info },
+  { to: "/saugumas", label: "Saugumas", icon: ShieldCheck },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {

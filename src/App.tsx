@@ -15,6 +15,7 @@ import Trener from "./pages/Trener";
 import Informacija from "./pages/Informacija";
 import NotFound from "./pages/NotFound";
 import Security, { MfaGate } from "./pages/Security";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/kainos" element={<Kainos />} />
               <Route path="/informacija" element={<Informacija />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/atkurti-slaptazodi" element={<ResetPassword />} />
               <Route path="/paskyra" element={<RequireAuth><PaskyraRoute /></RequireAuth>} />
               <Route path="/saugumas" element={<RequireAuth><Security /></RequireAuth>} />
               <Route path="/admin" element={<RequireAuth adminOnly><Admin /></RequireAuth>} />

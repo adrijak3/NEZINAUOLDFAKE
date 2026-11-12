@@ -37,9 +37,6 @@ export default function Auth() {
   // Forgot-password dialog state
   const [forgotOpen, setForgotOpen] = useState(false);
   const [fpEmail, setFpEmail] = useState("");
-  const [fpPhone, setFpPhone] = useState("");
-  const [fpPw, setFpPw] = useState("");
-  const [fpPw2, setFpPw2] = useState("");
   const [fpBusy, setFpBusy] = useState(false);
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -116,22 +113,18 @@ export default function Auth() {
   };
 
   const submitForgot = async () => {
-    if (!fpEmail.trim()) { toast.error("Įveskite el. paštą"); return; }
-    if (!fpPhone.trim()) { toast.error("Įveskite telefono numerį"); return; }
-    if (fpPw.length < 8) { toast.error("Slaptažodis turi būti bent 8 simbolių"); return; }
-    if (fpPw !== fpPw2) { toast.error("Slaptažodžiai nesutampa"); return; }
+    if (!/^\\S+@\\S+\\.\\S+$/.test(fpEmail.trim())) { toast.error("Įveskite teisingą el. paštą"); return; }
+    if (!captchaToken) { toast.error("Palaukite, kol bus atlikta saugumo patikra"); return; }
     setFpBusy(true);
-    const { data, error } = await supabase.functions.invoke("reset-password-by-phone", {
-      body: { email: fpEmail.trim(), phone: fpPhone.trim(), new_password: fpPw },
+    const { error } = await supabase.auth.resetPasswordForEmail(fpEmail.trim(), {
+      redirectTo: `${window.location.origin}/atkurti-slaptazodi`,
+      captchaToken,
     });
     setFpBusy(false);
-    if (error || (data as any)?.error) {
-      toast.error((data as any)?.error || error?.message || "Klaida");
-      return;
-    }
-    toast.success("Slaptažodis pakeistas. Galite prisijungti.");
-    setForgotOpen(false);
-    setFpEmail(""); setFpPhone(""); setFpPw(""); setFpPw2("");
+    refreshCaptcha();
+    if (error) { toast.error("Nepavyko išsiųsti nuorodos. Bandykite vėliau."); return; }
+    toast.success("Jeigu paskyra egzistuoja, išsiųsime slaptažodžio atkūrimo nuorodą.");
+    setForgotOpen(false); setFpEmail("");
   };
 
   return (
@@ -212,27 +205,13 @@ export default function Auth() {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Įveskite paskyros el. paštą ir telefono numerį. Jei jie sutaps su paskyra –
-              galėsite iškart nustatyti naują slaptažodį.
+              Įveskite savo el. paštą. Jei paskyra egzistuoja, gausite saugią slaptažodžio atkūrimo nuorodą.
             </p>
             <div>
               <Label htmlFor="fp-email">El. paštas</Label>
               <Input id="fp-email" type="email" value={fpEmail} onChange={(e) => setFpEmail(e.target.value)} />
             </div>
-            <div>
-              <Label htmlFor="fp-phone">Telefono numeris</Label>
-              <Input id="fp-phone" type="tel" value={fpPhone} onChange={(e) => setFpPhone(e.target.value)} placeholder="+370" />
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="fp-pw">Naujas slaptažodis</Label>
-                <Input id="fp-pw" type="password" value={fpPw} onChange={(e) => setFpPw(e.target.value)} minLength={8} />
-              </div>
-              <div>
-                <Label htmlFor="fp-pw2">Pakartokite</Label>
-                <Input id="fp-pw2" type="password" value={fpPw2} onChange={(e) => setFpPw2(e.target.value)} minLength={8} />
-              </div>
-            </div>
+
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setForgotOpen(false)}>Atšaukti</Button>
